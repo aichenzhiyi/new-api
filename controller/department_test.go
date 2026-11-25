@@ -43,6 +43,7 @@ func TestDepartmentAdministration(t *testing.T) {
 	require.NoError(t, db.AutoMigrate(&model.Option{}))
 	require.NoError(t, model.MigrateDepartments(db))
 	require.NoError(t, model.MigrateDepartments(db))
+	require.NoError(t, db.AutoMigrate(&model.Project{}))
 	operator := &model.User{Username: "department-root", Password: "unused", Role: common.RoleRootUser, Status: common.UserStatusEnabled, Group: "default", AuthVersion: 1, AffCode: "department-root"}
 	require.NoError(t, db.Create(operator).Error)
 	require.NoError(t, model.PublishUserAuthCache(operator.Id))

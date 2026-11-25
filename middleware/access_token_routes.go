@@ -46,6 +46,10 @@ var accessTokenRouteRules = map[string]accessTokenRouteRule{
 	"POST /api/departments":       accessTokenSessionRule,
 	"PUT /api/departments/:id":    accessTokenSessionRule,
 	"DELETE /api/departments/:id": accessTokenSessionRule,
+	"GET /api/projects":           accessTokenSessionRule,
+	"POST /api/projects":          accessTokenSessionRule,
+	"PUT /api/projects/:id":       accessTokenSessionRule,
+	"DELETE /api/projects/:id":    accessTokenSessionRule,
 	// router/api-router.go: top level
 	"GET /api/models":                     accessTokenScopeRule("profile:read"),
 	"GET /api/status/test":                accessTokenScopeRule("log:read"),

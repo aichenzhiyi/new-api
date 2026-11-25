@@ -27,7 +27,7 @@ type Department struct {
 }
 
 var departmentCodePattern = regexp.MustCompile(`^[A-Z0-9][A-Z0-9_-]{0,31}$`)
-var departmentMutationMu sync.Mutex
+var organizationMutationMu sync.Mutex
 
 // MigrateDepartments removes retired department fields from existing tables.
 // AutoMigrate alone does not remove columns, and the old NOT NULL columns would
@@ -50,10 +50,11 @@ func GetDepartments() ([]Department, error) {
 }
 
 // All hierarchy mutations share the same lock, so concurrent child creation,
-// reparenting, disabling and deletion cannot bypass parent/child validation.
-func departmentHierarchyTransaction(change func(*gorm.DB) error) error {
-	departmentMutationMu.Lock()
-	defer departmentMutationMu.Unlock()
+// reparenting, disabling, deletion and project assignment cannot bypass validation.
+// Retain the original anchor key for compatibility with existing installations.
+func organizationTransaction(change func(*gorm.DB) error) error {
+	organizationMutationMu.Lock()
+	defer organizationMutationMu.Unlock()
 	return DB.Transaction(func(tx *gorm.DB) error {
 		anchor := Option{Key: "department_tree_lock", Value: ""}
 		if err := tx.Clauses(clause.OnConflict{DoNothing: true}).Create(&anchor).Error; err != nil {
@@ -71,7 +72,7 @@ func DeleteDepartment(id int) (*Department, error) {
 		return nil, common.NewMessage("Invalid parameters")
 	}
 	var department Department
-	err := departmentHierarchyTransaction(func(tx *gorm.DB) error {
+	err := organizationTransaction(func(tx *gorm.DB) error {
 		if err := tx.First(&department, id).Error; err != nil {
 			return err
 		}
@@ -81,6 +82,13 @@ func DeleteDepartment(id int) (*Department, error) {
 		}
 		if children > 0 {
 			return common.NewMessage("Cannot delete a department with child departments")
+		}
+		var projects int64
+		if err := tx.Model(&Project{}).Where("department_id = ?", id).Count(&projects).Error; err != nil {
+			return err
+		}
+		if projects > 0 {
+			return common.NewMessage("Cannot delete a department with projects")
 		}
 		return tx.Delete(&department).Error
 	})
@@ -109,7 +117,7 @@ func SaveDepartment(department *Department) (*Department, error) {
 		return nil, common.NewMessage("Invalid parameters")
 	}
 	var before *Department
-	err := departmentHierarchyTransaction(func(tx *gorm.DB) error {
+	err := organizationTransaction(func(tx *gorm.DB) error {
 		if department.Id > 0 {
 			var stored Department
 			if err := tx.First(&stored, department.Id).Error; err != nil {
@@ -150,6 +158,13 @@ func SaveDepartment(department *Department) (*Department, error) {
 			}
 			if children > 0 {
 				return common.NewMessage("Cannot disable a department with child departments")
+			}
+			var projects int64
+			if err := tx.Model(&Project{}).Where("department_id = ? AND enabled = ?", department.Id, true).Count(&projects).Error; err != nil {
+				return err
+			}
+			if projects > 0 {
+				return common.NewMessage("Cannot disable a department with enabled projects")
 			}
 		}
 		department.UpdatedTime = common.GetTimestamp()

@@ -383,6 +383,9 @@ func migrateDB() error {
 	if err := MigrateDepartments(DB); err != nil {
 		return err
 	}
+	if err := DB.AutoMigrate(&Project{}); err != nil {
+		return err
+	}
 	if err := InitializeUserAuthVersions(); err != nil {
 		return err
 	}

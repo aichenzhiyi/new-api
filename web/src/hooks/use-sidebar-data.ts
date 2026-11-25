@@ -156,6 +156,12 @@ export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
             requiredRole: ROLE.SUPER_ADMIN,
           },
           {
+            title: t('Project Management'),
+            url: '/projects',
+            icon: ClipboardList,
+            requiredRole: ROLE.SUPER_ADMIN,
+          },
+          {
             title: t('Redemption Codes'),
             url: '/redemption-codes',
             icon: Ticket,

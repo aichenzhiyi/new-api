@@ -381,6 +381,11 @@ func SetApiRouter(router *gin.Engine) {
 		departmentRoute.POST("", controller.SaveDepartment)
 		departmentRoute.PUT("/:id", controller.SaveDepartment)
 		departmentRoute.DELETE("/:id", controller.DeleteDepartment)
+		projectRoute := apiRouter.Group("/projects", middleware.RootAuth())
+		projectRoute.GET("", controller.GetProjects)
+		projectRoute.POST("", controller.SaveProject)
+		projectRoute.PUT("/:id", controller.SaveProject)
+		projectRoute.DELETE("/:id", controller.DeleteProject)
 
 		prefillGroupRoute.Use(middleware.AdminAuth())
 		{

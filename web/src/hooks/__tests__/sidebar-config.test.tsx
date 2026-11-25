@@ -94,6 +94,30 @@ function sidebarFor(admin?: object, user?: object, canConfigure = true) {
   return result
 }
 
+describe('project sidebar visibility', () => {
+  it('defaults legacy configurations to visible and persists an independent project toggle', () => {
+    const config = parseSidebarModulesAdmin(
+      '{"admin":{"enabled":true,"department":true}}'
+    )
+    expect(config.admin.project).toBe(true)
+    const legacy = sidebarFor(config)
+    expect(
+      legacy.result.current
+        .flatMap((group) => group.items)
+        .find((item) => item.title === 'Project Management')
+    ).toMatchObject({ url: '/projects', requiredRole: ROLE.SUPER_ADMIN })
+    legacy.unmount()
+    config.admin.project = false
+    const saved = parseSidebarModulesAdmin(serializeSidebarModulesAdmin(config))
+    const hidden = sidebarFor(saved)
+    const titles = hidden.result.current
+      .flatMap((group) => group.items)
+      .map((item) => item.title)
+    expect(titles).not.toContain('Project Management')
+    expect(titles).toContain('Department Management')
+  })
+})
+
 describe('security sidebar visibility', () => {
   it('old configurations show Security & Access immediately after Profile and keep API Keys', () => {
     const { result } = sidebarFor(

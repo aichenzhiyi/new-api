@@ -150,6 +150,10 @@ export function SidebarModulesSection({
         title: t('Department Management'),
         description: t('Manage department hierarchy and status.'),
       },
+      project: {
+        title: t('Project Management'),
+        description: t('Manage projects and cost-bearing departments.'),
+      },
       redemption: {
         title: t('Redeem codes'),
         description: t('Create and review invite or credit codes.'),
