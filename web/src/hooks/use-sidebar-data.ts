@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import {
   Activity,
+  Building2,
   Box,
   ClipboardList,
   CreditCard,
@@ -147,6 +148,12 @@ export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
             title: t('Users'),
             url: '/users',
             icon: Users,
+          },
+          {
+            title: t('Department Management'),
+            url: '/departments',
+            icon: Building2,
+            requiredRole: ROLE.SUPER_ADMIN,
           },
           {
             title: t('Redemption Codes'),

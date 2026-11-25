@@ -475,6 +475,9 @@ const AUDIT_TEMPLATES: Record<string, string> = {
   login: 'Logged in successfully via {{method}}',
   // User management
   'user.create': 'Created user {{username}} (role {{role}})',
+  'department.create': 'Created department {{name}} (ID: {{id}})',
+  'department.update': 'Updated department {{name}} (ID: {{id}})',
+  'department.delete': 'Deleted department {{name}} (ID: {{id}})',
   'user.update': 'Updated user {{username}} (ID: {{id}})',
   'user.delete': 'Deleted user {{username}} (ID: {{id}})',
   'user.account_delete': 'Account deletion',

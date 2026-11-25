@@ -146,6 +146,10 @@ export function SidebarModulesSection({
         title: t('Models'),
         description: t('Manage catalog visibility and pricing.'),
       },
+      department: {
+        title: t('Department Management'),
+        description: t('Manage department hierarchy and status.'),
+      },
       redemption: {
         title: t('Redeem codes'),
         description: t('Create and review invite or credit codes.'),

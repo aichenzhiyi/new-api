@@ -19,6 +19,19 @@ For commercial licensing, please contact support@quantumnous.com
 // Static translation keys that don't get picked up by the t('...') regex.
 // These cover dynamic labels (e.g. constants, configs) that are passed into t at runtime.
 export const STATIC_I18N_KEYS = [
+  'Department code must contain 1–32 letters, digits, hyphens or underscores and start with a letter or digit.',
+  'Department name must contain 1–64 characters.',
+  'Department owner must not exceed 64 characters; description must not exceed 255 characters.',
+  'Department code already exists',
+  'Department hierarchy cannot contain a cycle',
+  'Parent department does not exist',
+  'Enable the parent departments first',
+  'Cannot disable a department with child departments',
+  'Cannot delete a department with child departments',
+  'Deleted department {{name}} (ID: {{id}})',
+  'Department does not exist',
+  'Created department {{name}} (ID: {{id}})',
+  'Updated department {{name}} (ID: {{id}})',
   'The adjusted price is outside the supported range.',
   'This expression cannot be adjusted automatically. Keep the source price or edit it manually.',
   'Task usage metadata is unavailable. Pricing details cannot be displayed.',

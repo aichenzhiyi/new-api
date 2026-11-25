@@ -1,7 +1,9 @@
 package router
 
 import (
+	"fmt"
 	"strings"
+	"sync/atomic"
 
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/controller"
@@ -11,6 +13,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+var chatCompletionsCallCount atomic.Uint64
 
 func SetRelayRouter(router *gin.Engine) {
 	router.Use(middleware.CORS())
@@ -103,6 +107,8 @@ func SetRelayRouter(router *gin.Engine) {
 			controller.Relay(c, types.RelayFormatOpenAI)
 		})
 		httpRouter.POST("/chat/completions", func(c *gin.Context) {
+			count := chatCompletionsCallCount.Add(1)
+			fmt.Printf("/chat/completions 被调用了 %d 次", count)
 			controller.Relay(c, types.RelayFormatOpenAI)
 		})
 

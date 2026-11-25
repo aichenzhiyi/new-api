@@ -376,6 +376,12 @@ func SetApiRouter(router *gin.Engine) {
 		}
 
 		prefillGroupRoute := apiRouter.Group("/prefill_group")
+		departmentRoute := apiRouter.Group("/departments", middleware.RootAuth())
+		departmentRoute.GET("", controller.GetDepartments)
+		departmentRoute.POST("", controller.SaveDepartment)
+		departmentRoute.PUT("/:id", controller.SaveDepartment)
+		departmentRoute.DELETE("/:id", controller.DeleteDepartment)
+
 		prefillGroupRoute.Use(middleware.AdminAuth())
 		{
 			prefillGroupRoute.GET("/", controller.GetPrefillGroups)

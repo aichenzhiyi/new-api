@@ -35,7 +35,7 @@ var performanceSetting = PerformanceSetting{
 
 	MonitorEnabled:         true,
 	MonitorCPUThreshold:    90,
-	MonitorMemoryThreshold: 90,
+	MonitorMemoryThreshold: 0,
 	MonitorDiskThreshold:   95,
 }
 
