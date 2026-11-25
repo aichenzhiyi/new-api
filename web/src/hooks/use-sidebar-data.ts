@@ -91,6 +91,11 @@ export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
             icon: Key,
           },
           {
+            title: t('Project Management'),
+            url: '/projects',
+            icon: ClipboardList,
+          },
+          {
             title: t('Usage Logs'),
             url: '/usage-logs/common',
             icon: FileText,
@@ -153,12 +158,6 @@ export function useSidebarData(badges: SidebarBadges = {}): SidebarData {
             title: t('Department Management'),
             url: '/departments',
             icon: Building2,
-            requiredRole: ROLE.SUPER_ADMIN,
-          },
-          {
-            title: t('Project Management'),
-            url: '/projects',
-            icon: ClipboardList,
             requiredRole: ROLE.SUPER_ADMIN,
           },
           {

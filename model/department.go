@@ -90,6 +90,13 @@ func DeleteDepartment(id int) (*Department, error) {
 		if projects > 0 {
 			return common.NewMessage("Cannot delete a department with projects")
 		}
+		var accounts int64
+		if err := tx.Model(&UserOrganization{}).Where("department_id = ?", id).Count(&accounts).Error; err != nil {
+			return err
+		}
+		if accounts > 0 {
+			return common.NewMessage("Cannot delete a department with account assignments")
+		}
 		return tx.Delete(&department).Error
 	})
 	return &department, err

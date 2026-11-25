@@ -12,7 +12,7 @@ import (
 )
 
 func GetProjects(c *gin.Context) {
-	projects, err := model.GetProjects()
+	projects, err := model.GetProjectsForUser(c.GetInt("id"))
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -26,8 +26,12 @@ func DeleteProject(c *gin.Context) {
 		common.ApiErrorT(c, "Invalid parameters")
 		return
 	}
-	project, err := model.DeleteProject(id)
+	project, err := model.DeleteProjectForUser(c.GetInt("id"), id)
 	if err != nil {
+		if errors.Is(err, model.ErrProjectAccessDenied) {
+			writeProjectAccessDenied(c, id)
+			return
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			common.ApiErrorT(c, "Project does not exist")
 			return
@@ -68,8 +72,12 @@ func SaveProject(c *gin.Context) {
 		project.Id = id
 		action = "project.update"
 	}
-	before, err := model.SaveProject(&project)
+	before, err := model.SaveProjectForUser(c.GetInt("id"), &project)
 	if err != nil {
+		if errors.Is(err, model.ErrProjectAccessDenied) {
+			writeProjectAccessDenied(c, project.Id)
+			return
+		}
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			common.ApiErrorT(c, "Project does not exist")
 			return

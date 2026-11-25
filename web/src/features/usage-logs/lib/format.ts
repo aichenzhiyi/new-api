@@ -450,6 +450,7 @@ export function formatDuration(
  * translatable instead of being frozen to whatever language was written to DB.
  */
 const AUDIT_TEMPLATES: Record<string, string> = {
+  'project.access.denied': 'Denied project access (ID: {{id}})',
   'token.create': 'API token creation',
   'token.update': 'API token configuration update',
   'token.status_update': 'API token status update',
@@ -481,6 +482,8 @@ const AUDIT_TEMPLATES: Record<string, string> = {
   'project.create': 'Created project {{name}} (ID: {{id}})',
   'project.update': 'Updated project {{name}} (ID: {{id}})',
   'project.delete': 'Deleted project {{name}} (ID: {{id}})',
+  'user.organization.update':
+    'Updated department and project assignments for user (ID: {{id}})',
   'user.update': 'Updated user {{username}} (ID: {{id}})',
   'user.delete': 'Deleted user {{username}} (ID: {{id}})',
   'user.account_delete': 'Account deletion',

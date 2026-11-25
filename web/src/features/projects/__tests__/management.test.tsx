@@ -23,6 +23,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { Department } from '@/features/departments/types'
 import { api } from '@/lib/api'
+import { useAuthStore } from '@/stores/auth-store'
 
 import { Projects } from '..'
 import { ProjectFormDialog } from '../components/project-form-dialog'
@@ -60,7 +61,10 @@ const project: Project = {
 }
 const clients: QueryClient[] = []
 
-function renderProjectPage(element = <Projects />) {
+function renderProjectPage(element = <Projects />, role = 100) {
+  useAuthStore
+    .getState()
+    .auth.setUser({ id: 1, username: 'project-manager', role })
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
@@ -74,9 +78,32 @@ afterEach(() => {
   for (const client of clients) client.clear()
   clients.length = 0
   localStorage.clear()
+  useAuthStore.getState().auth.reset()
 })
 
 describe('project management', () => {
+  it('project managers see their scoped list and cannot create projects or change departments', async () => {
+    const get = vi.spyOn(api, 'get').mockImplementation(async (url) => ({
+      data: {
+        success: true,
+        data: url === '/api/projects' ? [project] : [department],
+      },
+    }))
+    renderProjectPage(<Projects />, 1)
+    const user = userEvent.setup()
+    expect(await screen.findByText('Assistant', { exact: true })).toBeVisible()
+    expect(
+      screen.queryByRole('button', { name: 'Create project' })
+    ).not.toBeInTheDocument()
+    expect(get).toHaveBeenCalledWith('/api/projects/departments')
+    expect(get).not.toHaveBeenCalledWith('/api/departments')
+    await user.click(screen.getByRole('button', { name: 'Edit project' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Edit project' })
+    expect(
+      within(dialog).getByLabelText('Cost-bearing department')
+    ).toBeDisabled()
+    expect(within(dialog).getByLabelText('Project name')).toBeEnabled()
+  })
   it('requires an enabled department before creating projects', async () => {
     vi.spyOn(api, 'get').mockResolvedValue({
       data: { success: true, data: [] },

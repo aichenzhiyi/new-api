@@ -124,6 +124,7 @@ it.each([
   ['project.create', '创建项目 1（ID：11）'],
   ['project.update', '更新项目 1（ID：11）'],
   ['project.delete', '删除项目 1（ID：11）'],
+  ['user.organization.update', '更新账号的部门和项目关联（ID：11）'],
 ])('localizes the neutral event summary for %s', async (action, summary) => {
   const i18n = createInstance()
   await i18n.init({ lng: 'zh', resources: { zh } })

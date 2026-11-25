@@ -98,6 +98,19 @@ export async function searchUsers(
 /**
  * Get single user by ID
  */
+export async function saveUserOrganization(
+  id: number,
+  data: { department_id: number; project_ids: number[] },
+  proofToken: string
+) {
+  const res = await api.put(
+    `/api/user/${id}/organization`,
+    data,
+    securityProofConfig(proofToken)
+  )
+  return res.data
+}
+
 export async function getUser(id: number): Promise<ApiResponse<User>> {
   const res = await api.get(`/api/user/${id}`)
   return res.data

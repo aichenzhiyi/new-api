@@ -46,6 +46,7 @@ interface ProjectFormDialogProps {
   project?: Project
   departments: Department[]
   onClose: () => void
+  canChangeDepartment?: boolean
 }
 
 export function ProjectFormDialog(props: ProjectFormDialogProps) {
@@ -150,6 +151,7 @@ export function ProjectFormDialog(props: ProjectFormDialogProps) {
                   <FormLabel>{t('Cost-bearing department')}</FormLabel>
                   <FormControl>
                     <NativeSelect
+                      disabled={props.canChangeDepartment === false}
                       ref={field.ref}
                       name={field.name}
                       value={String(field.value)}

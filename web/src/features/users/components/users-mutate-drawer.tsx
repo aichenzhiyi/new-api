@@ -114,7 +114,8 @@ export function UsersMutateDrawer({
 }: UsersMutateDrawerProps) {
   const { t } = useTranslation()
   const isUpdate = !!currentRow
-  const { triggerRefresh, requestVerification } = useUsers()
+  const { triggerRefresh, requestVerification, setCurrentRow, setOpen } =
+    useUsers()
   const currentUser = useAuthStore((s) => s.auth.user)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [quotaDialogOpen, setQuotaDialogOpen] = useState(false)
@@ -247,6 +248,25 @@ export function UsersMutateDrawer({
         )
         onOpenChange(false)
         triggerRefresh()
+        if (
+          !isUpdate &&
+          currentUser?.role === ROLE.SUPER_ADMIN &&
+          result.data?.id &&
+          (payload.role ?? ROLE.USER) === ROLE.USER
+        ) {
+          setCurrentRow({
+            id: result.data.id,
+            username: payload.username,
+            display_name: payload.display_name ?? payload.username,
+            role: ROLE.USER,
+            status: 1,
+            quota: 0,
+            used_quota: 0,
+            request_count: 0,
+            group: payload.group ?? 'default',
+          })
+          setOpen('organization')
+        }
       } else {
         handleServerError(result, t(ERROR_MESSAGES.CREATE_FAILED))
       }

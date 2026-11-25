@@ -28,10 +28,13 @@ import { Button } from '@/components/ui/button'
 import { departmentsQueryKey, getDepartments } from '@/features/departments/api'
 import type { Department } from '@/features/departments/types'
 import { handleServerError } from '@/lib/handle-server-error'
+import { ROLE } from '@/lib/roles'
+import { useAuthStore } from '@/stores/auth-store'
 
 import {
   deleteProject,
   getProjects,
+  getProjectDepartments,
   projectsQueryKey,
   saveProject,
 } from './api'
@@ -45,13 +48,15 @@ const emptyDepartments: Department[] = []
 export function Projects() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const user = useAuthStore((state) => state.auth.user)
+  const isGlobalAdmin = user?.role === ROLE.SUPER_ADMIN
   const projects = useQuery({
-    queryKey: projectsQueryKey,
+    queryKey: [...projectsQueryKey, user?.id],
     queryFn: getProjects,
   })
   const departments = useQuery({
-    queryKey: departmentsQueryKey,
-    queryFn: getDepartments,
+    queryKey: [...departmentsQueryKey, 'project-access', user?.id],
+    queryFn: isGlobalAdmin ? getDepartments : getProjectDepartments,
   })
   const [editor, setEditor] = useState<Project | 'new' | null>(null)
   const [toggle, setToggle] = useState<Project | null>(null)
@@ -91,14 +96,16 @@ export function Projects() {
         <SectionPageLayout.Title>
           {t('Project Management')}
         </SectionPageLayout.Title>
-        <SectionPageLayout.Actions>
-          <Button
-            onClick={() => setEditor('new')}
-            disabled={pending || failed || !canCreate}
-          >
-            {t('Create project')}
-          </Button>
-        </SectionPageLayout.Actions>
+        {isGlobalAdmin && (
+          <SectionPageLayout.Actions>
+            <Button
+              onClick={() => setEditor('new')}
+              disabled={pending || failed || !canCreate}
+            >
+              {t('Create project')}
+            </Button>
+          </SectionPageLayout.Actions>
+        )}
         <SectionPageLayout.Content>
           {failed ? (
             <ErrorState
@@ -129,6 +136,7 @@ export function Projects() {
         <ProjectFormDialog
           project={editor === 'new' ? undefined : editor}
           departments={departments.data ?? emptyDepartments}
+          canChangeDepartment={isGlobalAdmin}
           onClose={closeEditor}
         />
       )}

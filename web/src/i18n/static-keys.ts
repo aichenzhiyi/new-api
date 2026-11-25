@@ -19,6 +19,18 @@ For commercial licensing, please contact support@quantumnous.com
 // Static translation keys that don't get picked up by the t('...') regex.
 // These cover dynamic labels (e.g. constants, configs) that are passed into t at runtime.
 export const STATIC_I18N_KEYS = [
+  'Denied project access (ID: {{id}})',
+  'No permission to access this project',
+  'Select an account department before assigning projects',
+  'Global administrators do not need project assignments',
+  'Account department does not exist',
+  'Enable the account department first',
+  'Assigned project does not exist',
+  'Enable the project before assigning it',
+  'Only global administrators can change the cost-bearing department',
+  'Remove project account assignments before deleting the project',
+  'Cannot delete a department with account assignments',
+  'Updated department and project assignments for user (ID: {{id}})',
   'Project code must contain 1–32 letters, digits, hyphens or underscores and start with a letter or digit.',
   'Project name must contain 1–64 characters.',
   'Project owner must not exceed 64 characters; description must not exceed 255 characters.',

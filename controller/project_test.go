@@ -21,7 +21,7 @@ func TestProjectAdministration(t *testing.T) {
 	require.NoError(t, model.MigrateDepartments(db))
 	// Simulate upgrading the department-only schema, then repeat startup DDL.
 	for range 2 {
-		require.NoError(t, db.AutoMigrate(&model.Project{}))
+		require.NoError(t, db.AutoMigrate(&model.Project{}, &model.UserOrganization{}, &model.UserProject{}))
 	}
 	operator := &model.User{Username: "project-root", Password: "unused", Role: common.RoleRootUser, Status: common.UserStatusEnabled, Group: "default", AuthVersion: 1, AffCode: "project-root"}
 	require.NoError(t, db.Create(operator).Error)
@@ -33,9 +33,9 @@ func TestProjectAdministration(t *testing.T) {
 	_, adminJWT := createAccessTokenTestSession(t, admin.Id, "project-admin-session")
 	engine := gin.New()
 	engine.Use(middleware.RequestId(), middleware.AccessTokenAudit())
-	routes := engine.Group("/api/projects", middleware.RootAuth())
+	routes := engine.Group("/api/projects", middleware.UserAuth())
 	routes.GET("", GetProjects)
-	routes.POST("", SaveProject)
+	routes.POST("", middleware.RootAuth(), SaveProject)
 	routes.PUT("/:id", SaveProject)
 	routes.DELETE("/:id", DeleteProject)
 	department := model.Department{Code: "COST", Name: "Cost department", Enabled: true}
@@ -45,11 +45,20 @@ func TestProjectAdministration(t *testing.T) {
 	_, err = model.SaveDepartment(&otherDepartment)
 	require.NoError(t, err)
 
-	t.Run("only root sessions can read or mutate projects", func(t *testing.T) {
+	t.Run("sessions are required and unassigned administrators receive no implicit project access", func(t *testing.T) {
 		for _, request := range []struct{ method, path string }{{"GET", "/api/projects"}, {"POST", "/api/projects"}, {"PUT", "/api/projects/1"}, {"DELETE", "/api/projects/1"}} {
 			assert.Equal(t, http.StatusUnauthorized, performDepartmentRequest(t, engine, request.method, request.path, "", nil).Code)
-			assert.Equal(t, http.StatusForbidden, performDepartmentRequest(t, engine, request.method, request.path, adminJWT, nil).Code)
 		}
+		assert.Equal(t, http.StatusForbidden, performDepartmentRequest(t, engine, "POST", "/api/projects", adminJWT, nil).Code)
+		assert.Equal(t, http.StatusForbidden, performDepartmentRequest(t, engine, "DELETE", "/api/projects/1", adminJWT, nil).Code)
+		response := performDepartmentRequest(t, engine, "GET", "/api/projects", adminJWT, nil)
+		var result struct {
+			Success bool
+			Data    []model.Project
+		}
+		require.NoError(t, common.Unmarshal(response.Body.Bytes(), &result))
+		assert.True(t, result.Success)
+		assert.Empty(t, result.Data)
 	})
 	var project model.Project
 	t.Run("create normalizes fields and accepts only server owned identity and timestamps", func(t *testing.T) {

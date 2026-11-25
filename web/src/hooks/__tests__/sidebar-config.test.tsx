@@ -105,7 +105,7 @@ describe('project sidebar visibility', () => {
       legacy.result.current
         .flatMap((group) => group.items)
         .find((item) => item.title === 'Project Management')
-    ).toMatchObject({ url: '/projects', requiredRole: ROLE.SUPER_ADMIN })
+    ).toMatchObject({ url: '/projects' })
     legacy.unmount()
     config.admin.project = false
     const saved = parseSidebarModulesAdmin(serializeSidebarModulesAdmin(config))

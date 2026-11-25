@@ -884,6 +884,16 @@ func newAuditTestDatabase(t *testing.T, kind, dsn string) (*gorm.DB, string) {
 		if err == nil {
 			_ = connection.Close()
 		}
+		// Only this fixture's generated, isolated database is removed.
+		cleanupDB, cleanupErr := gorm.Open(original, &gorm.Config{})
+		if !assert.NoError(t, cleanupErr) {
+			return
+		}
+		assert.NoError(t, cleanupDB.Exec("DROP DATABASE "+name).Error)
+		cleanupConnection, cleanupErr := cleanupDB.DB()
+		if assert.NoError(t, cleanupErr) {
+			assert.NoError(t, cleanupConnection.Close())
+		}
 	})
 	return db, newDSN
 }

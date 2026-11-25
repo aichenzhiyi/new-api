@@ -1,3 +1,4 @@
+import type { Department } from '@/features/departments/types'
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -28,6 +29,13 @@ interface ProjectResponse<T> {
 }
 
 export const projectsQueryKey = ['projects'] as const
+
+export async function getProjectDepartments(): Promise<Department[]> {
+  const result = await api.get<ProjectResponse<Department[]>>(
+    '/api/projects/departments'
+  )
+  return requireServerSuccess(result.data).data
+}
 
 export async function deleteProject(id: number): Promise<void> {
   const result = await api.delete<ProjectResponse<null>>(`/api/projects/${id}`)

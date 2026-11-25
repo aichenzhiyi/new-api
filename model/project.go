@@ -30,17 +30,46 @@ func GetProjects() ([]Project, error) {
 	return projects, err
 }
 
-// DeleteProject returns the deleted snapshot for the management audit. Project
-// membership and API-key bindings have not been introduced yet; those batches
-// must add reference checks here before allowing deletion of associated data.
+// DeleteProject returns the deleted snapshot for internal management callers.
+// Existing account assignments block deletion; future API-key and usage bindings
+// must extend these checks before allowing deletion of associated data.
 func DeleteProject(id int) (*Project, error) {
+	return deleteProjectForUser(0, id)
+}
+
+func DeleteProjectForUser(userId, id int) (*Project, error) {
+	if userId < 1 {
+		return nil, ErrProjectAccessDenied
+	}
+	return deleteProjectForUser(userId, id)
+}
+
+func deleteProjectForUser(userId, id int) (*Project, error) {
 	if id < 1 {
 		return nil, common.NewMessage("Invalid parameters")
 	}
 	var project Project
 	err := organizationTransaction(func(tx *gorm.DB) error {
+		if userId > 0 {
+			query, root, err := ApplyProjectScope(tx, userId)
+			if err != nil {
+				return err
+			}
+			if !root {
+				if err := query.Where("id = ?", id).First(&project).Error; err != nil {
+					return ErrProjectAccessDenied
+				}
+			}
+		}
 		if err := tx.First(&project, id).Error; err != nil {
 			return err
+		}
+		var members int64
+		if err := tx.Model(&UserProject{}).Where("project_id = ?", id).Count(&members).Error; err != nil {
+			return err
+		}
+		if members > 0 {
+			return common.NewMessage("Remove project account assignments before deleting the project")
 		}
 		return tx.Delete(&project).Error
 	})
@@ -51,6 +80,17 @@ func DeleteProject(id int) (*Project, error) {
 // department cannot be deleted or disabled concurrently with project changes.
 // The previous snapshot is returned for the management audit.
 func SaveProject(project *Project) (*Project, error) {
+	return saveProjectForUser(0, project)
+}
+
+func SaveProjectForUser(userId int, project *Project) (*Project, error) {
+	if userId < 1 {
+		return nil, ErrProjectAccessDenied
+	}
+	return saveProjectForUser(userId, project)
+}
+
+func saveProjectForUser(userId int, project *Project) (*Project, error) {
 	project.Code = strings.ToUpper(strings.TrimSpace(project.Code))
 	project.Name = strings.TrimSpace(project.Name)
 	project.Owner = strings.TrimSpace(project.Owner)
@@ -69,6 +109,24 @@ func SaveProject(project *Project) (*Project, error) {
 	}
 	var before *Project
 	err := organizationTransaction(func(tx *gorm.DB) error {
+		if userId > 0 {
+			query, root, err := ApplyProjectScope(tx, userId)
+			if err != nil {
+				return err
+			}
+			if !root {
+				var current Project
+				if project.Id < 1 {
+					return ErrProjectAccessDenied
+				}
+				if err := query.Where("id = ?", project.Id).First(&current).Error; err != nil {
+					return ErrProjectAccessDenied
+				}
+				if current.DepartmentId != project.DepartmentId {
+					return common.NewMessage("Only global administrators can change the cost-bearing department")
+				}
+			}
+		}
 		if project.Id > 0 {
 			var stored Project
 			if err := tx.First(&stored, project.Id).Error; err != nil {

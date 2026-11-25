@@ -980,6 +980,9 @@ func (user *User) delete(identity *AuthSessionIdentity) (int64, error) {
 		if err != nil {
 			return err
 		}
+		if err := removeUserOrganizationWithTx(tx, user.Id); err != nil {
+			return err
+		}
 		return tx.Delete(user).Error
 	}); err != nil {
 		return 0, err
@@ -1036,6 +1039,9 @@ func (user *User) HardDelete() (int64, error) {
 }
 
 func deleteUserAuthenticationData(tx *gorm.DB, userId int) error {
+	if err := removeUserOrganizationWithTx(tx, userId); err != nil {
+		return err
+	}
 	if err := releaseAllExternalIdentitiesWithTx(tx, userId); err != nil {
 		return err
 	}
