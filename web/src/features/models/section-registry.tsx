@@ -32,6 +32,7 @@ const MODELS_SECTIONS = [
     titleKey: 'Vendors',
     build: () => null,
   },
+  { id: 'accounts', titleKey: 'Procurement accounts', build: () => null },
   {
     id: 'deployments',
     titleKey: 'Deployments',

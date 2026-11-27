@@ -308,6 +308,15 @@ func DeleteModelMetadata(ids []int, removeFromChannels, removePricing bool) (Mod
 		if len(records) != len(modelIDs) {
 			return errors.New("selected models changed; reload before deleting")
 		}
+		if tx.Migrator().HasTable(&EnterpriseModel{}) {
+			var profiles int64
+			if err := tx.Model(&EnterpriseModel{}).Where("model_id IN ?", modelIDs).Count(&profiles).Error; err != nil {
+				return err
+			}
+			if profiles > 0 {
+				return common.NewMessage("Remove enterprise model profiles before deleting model metadata")
+			}
+		}
 		for _, record := range records {
 			if removeFromChannels && record.NameRule != NameRuleExact {
 				return errors.New("only exact-match models can be removed from channels")

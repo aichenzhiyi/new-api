@@ -18,6 +18,12 @@ import (
 // action 的 params 填充。本地化展示文案在前端 i18n 模板中维护，本表是语言中立的
 // 英文基线——调用方因此无需在每个埋点处手写句子（避免与 params 重复书写同一份值）。
 var auditContentTemplates = map[string]string{
+	"supplier_account.create":   "Created procurement account (ID: ${id})",
+	"supplier_account.update":   "Updated procurement account (ID: ${id})",
+	"supplier_account.delete":   "Deleted procurement account (ID: ${id})",
+	"enterprise_model.update":   "Updated enterprise model information (ID: ${id})",
+	"enterprise_model.delete":   "Removed enterprise model information (ID: ${id})",
+	"enterprise.access.denied":  "Denied shared model configuration access",
 	"project.access.denied":     "Denied project access (ID: ${id})",
 	"department.create":         "Created department ${name} (ID: ${id})",
 	"department.update":         "Updated department ${name} (ID: ${id})",

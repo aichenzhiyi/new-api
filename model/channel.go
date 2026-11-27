@@ -26,6 +26,8 @@ import (
 )
 
 type Channel struct {
+	// Managed exclusively by the procurement ledger; legacy CRUD cannot bind it.
+	SupplierAccountId  int     `json:"-" gorm:"not null;default:0;index;->;comment:采购账户ID，0未关联，仅采购台账接口可修改"`
 	Id                 int     `json:"id"`
 	Type               int     `json:"type" gorm:"default:0"`
 	Key                string  `json:"key" gorm:"not null"`

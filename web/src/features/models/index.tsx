@@ -19,13 +19,16 @@ For commercial licensing, please contact support@quantumnous.com
 import { useQueryClient } from '@tanstack/react-query'
 import { getRouteApi, useNavigate } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { SectionPageLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { SupplierAccounts } from '@/features/enterprise-models/components/supplier-accounts'
+import { ROLE } from '@/lib/roles'
 import { requireServerSuccess } from '@/lib/server-error-message'
+import { useAuthStore } from '@/stores/auth-store'
 
 import { listDeployments } from './api'
 import { DeploymentAccessGuard } from './components/deployment-access-guard'
@@ -50,6 +53,10 @@ const SECTION_META: Record<
   ModelsSectionId,
   { titleKey: string; tabKey: string }
 > = {
+  accounts: {
+    titleKey: 'Procurement accounts',
+    tabKey: 'Procurement accounts',
+  },
   metadata: {
     titleKey: 'Model management',
     tabKey: 'Models',
@@ -63,6 +70,9 @@ const SECTION_META: Record<
 
 function ModelsContent() {
   const { t } = useTranslation()
+  const isRoot = useAuthStore(
+    (state) => state.auth.user?.role === ROLE.SUPER_ADMIN
+  )
   const navigate = useNavigate({ from: '/models/$section' })
   const { tabCategory, setTabCategory, setOpen, setCurrentVendor } = useModels()
   const params = route.useParams()
@@ -92,7 +102,7 @@ function ModelsContent() {
 
   const meta = SECTION_META[activeSection] ?? SECTION_META.metadata
 
-  let actions = <ModelsPrimaryButtons />
+  let actions: ReactNode = <ModelsPrimaryButtons />
   let content = <ModelsTable />
   if (activeSection === 'vendors') {
     actions = (
@@ -108,6 +118,9 @@ function ModelsContent() {
       </Button>
     )
     content = <VendorsTable />
+  } else if (activeSection === 'accounts') {
+    actions = null
+    content = <SupplierAccounts />
   } else if (activeSection === 'deployments') {
     actions = (
       <Button onClick={() => setCreateDeploymentOpen(true)} size='sm'>
@@ -130,7 +143,9 @@ function ModelsContent() {
           <div className='flex h-full min-h-0 flex-col gap-4'>
             <Tabs value={activeSection} onValueChange={handleSectionChange}>
               <TabsList className='max-w-full flex-wrap justify-start group-data-horizontal/tabs:h-auto'>
-                {MODELS_SECTION_IDS.map((section) => (
+                {MODELS_SECTION_IDS.filter(
+                  (section) => isRoot || section !== 'accounts'
+                ).map((section) => (
                   <TabsTrigger key={section} value={section}>
                     {t(SECTION_META[section].tabKey)}
                   </TabsTrigger>

@@ -185,6 +185,17 @@ func buildVendorOperationPreview(db *gorm.DB, operation VendorOperation) (*Vendo
 	if operation.Action == "delete" && len(models) > 0 {
 		return nil, &VendorReferenceError{Counts: counts}
 	}
+	if operation.Action == "delete" || operation.Action == "merge" {
+		if db.Migrator().HasTable(&SupplierAccount{}) {
+			var accounts int64
+			if err := db.Model(&SupplierAccount{}).Where("vendor_id IN ?", ids).Count(&accounts).Error; err != nil {
+				return nil, err
+			}
+			if accounts > 0 {
+				return nil, common.NewMessage("Reassign procurement accounts before deleting or merging their vendor")
+			}
+		}
+	}
 	slices.SortFunc(preview.Sources, func(a, b Vendor) int { return a.Id - b.Id })
 	encoded, err := common.Marshal([]any{preview, modelVersions})
 	if err != nil {

@@ -82,6 +82,30 @@ export function isAuditDetailObject(
 
 export function auditFieldLabel(key: string, t: TFunction): string {
   switch (key) {
+    case 'account_ref':
+      return t('Procurement account reference')
+    case 'contract_ref':
+      return t('Contract reference')
+    case 'currency':
+      return t('Currency')
+    case 'vendor_id':
+      return t('Vendor')
+    case 'channel_ids':
+      return t('Linked channels')
+    case 'model_id':
+      return t('Model')
+    case 'model_version':
+      return t('Model version')
+    case 'capabilities':
+      return t('Capabilities')
+    case 'context_limit':
+      return t('Context limit (tokens; 0 = unknown)')
+    case 'scenarios':
+      return t('Usage scenarios')
+    case 'deployment_type':
+      return t('Deployment type')
+    case 'shared':
+      return t('Visible to all projects')
     case 'status':
       return t('Status')
     case 'role':

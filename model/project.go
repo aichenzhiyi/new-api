@@ -61,7 +61,7 @@ func deleteProjectForUser(userId, id int) (*Project, error) {
 				}
 			}
 		}
-		if err := tx.First(&project, id).Error; err != nil {
+		if err := lockForUpdate(tx).First(&project, id).Error; err != nil {
 			return err
 		}
 		var members int64
@@ -70,6 +70,17 @@ func deleteProjectForUser(userId, id int) (*Project, error) {
 		}
 		if members > 0 {
 			return common.NewMessage("Remove project account assignments before deleting the project")
+		}
+		if tx.Migrator().HasTable(&EnterpriseModelProject{}) {
+			// Use a current read after locking the project. MySQL repeatable-read
+			// snapshots may predate a profile assignment that held this row lock.
+			var assignments []EnterpriseModelProject
+			if err := lockForUpdate(tx).Where("project_id = ?", id).Limit(1).Find(&assignments).Error; err != nil {
+				return err
+			}
+			if len(assignments) > 0 {
+				return common.NewMessage("Remove enterprise model assignments before deleting the project")
+			}
 		}
 		return tx.Delete(&project).Error
 	})

@@ -41,6 +41,7 @@ interface ProjectsTableProps {
   onEdit: (project: Project) => void
   onToggle: (project: Project) => void
   onDelete: (project: Project) => void
+  onModels?: (project: Project) => void
 }
 
 export function ProjectsTable(props: ProjectsTableProps) {
@@ -122,6 +123,15 @@ export function ProjectsTable(props: ProjectsTableProps) {
         size: 170,
         cell: ({ row }) => (
           <div className='flex items-center justify-end gap-1'>
+            {props.onModels && (
+              <Button
+                variant='ghost'
+                size='sm'
+                onClick={() => props.onModels?.(row.original)}
+              >
+                {t('Models')}
+              </Button>
+            )}
             <StaticRowActions
               editLabel={t('Edit project')}
               deleteLabel={t('Delete project')}

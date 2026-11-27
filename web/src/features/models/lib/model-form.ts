@@ -18,6 +18,8 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import { z } from 'zod'
 
+import { enterpriseProfileSchema } from '@/features/enterprise-models/lib/forms'
+
 import type { Model } from '../types'
 import { parseModelTags as parseTagsFromUtils } from './model-utils'
 
@@ -41,6 +43,7 @@ export const modelFormSchema = z.object({
   sync_official: z.boolean().default(true),
   enable_groups: z.array(z.string()).default([]),
   quota_types: z.array(z.number()).default([]),
+  enterprise: enterpriseProfileSchema.optional(),
 })
 
 export type ModelFormValues = z.infer<typeof modelFormSchema>

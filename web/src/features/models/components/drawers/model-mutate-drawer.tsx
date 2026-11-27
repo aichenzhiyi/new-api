@@ -63,12 +63,21 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  enterpriseQueryKey,
+  getEnterpriseModels,
+  saveEnterpriseModel,
+} from '@/features/enterprise-models/api'
+import { emptyEnterpriseProfile } from '@/features/enterprise-models/lib/forms'
 import { ModelPricingPanel } from '@/features/model-pricing/model-pricing-panel'
+import { getProjects, projectsQueryKey } from '@/features/projects/api'
+import { ROLE } from '@/lib/roles'
 import {
   requireServerSuccess,
   createServerError,
   getServerErrorMessage,
 } from '@/lib/server-error-message'
+import { useAuthStore } from '@/stores/auth-store'
 
 import { createModel, updateModel, getModel, getVendors } from '../../api'
 import { getNameRuleOptions, ENDPOINT_TEMPLATES } from '../../constants'
@@ -81,6 +90,7 @@ import {
   type ModelFormValues,
 } from '../../lib/model-form'
 import type { Model } from '../../types'
+import { EnterpriseModelFields } from '../enterprise-model-fields'
 import { ModelConnections } from '../model-connections'
 
 export function ModelMutateDrawer(props: {
@@ -91,6 +101,12 @@ export function ModelMutateDrawer(props: {
 }) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const user = useAuthStore((state) => state.auth.user)
+  const isRoot = user?.role === ROLE.SUPER_ADMIN
+  const [enterpriseDeleting, setEnterpriseDeleting] = useState(false)
+  // Retain a created identity across a failed second save so retry never
+  // creates duplicate metadata or discards the user's additional fields.
+  const pendingCreatedModel = useRef<Model | null>(null)
   const [createdModel, setCreatedModel] = useState<{
     source: Model | null | undefined
     model: Model
@@ -141,6 +157,30 @@ export function ModelMutateDrawer(props: {
     enabled: props.open && isEditing,
   })
   const savedModel = modelQuery.data ?? currentRow
+  const enterpriseQuery = useQuery({
+    queryKey: [...enterpriseQueryKey, 'models', user?.id, 0],
+    queryFn: () => getEnterpriseModels(),
+    enabled: props.open && isRoot && isEditing,
+  })
+  const projectsQuery = useQuery({
+    queryKey: [...projectsQueryKey, user?.id],
+    queryFn: getProjects,
+    enabled: props.open && isRoot,
+  })
+  const enterprise = enterpriseQuery.data?.find(
+    (profile) => profile.model_id === currentRow?.id
+  )
+  const enterpriseLoading = isRoot && isEditing && enterpriseQuery.isPending
+  const enterpriseBlocked =
+    isRoot &&
+    (enterpriseLoading ||
+      (isEditing && enterpriseQuery.isError) ||
+      projectsQuery.isPending ||
+      projectsQuery.isError)
+  const metadataLoading =
+    (isEditing && modelQuery.isPending) || enterpriseLoading
+  const metadataFailed =
+    modelQuery.isError || (isRoot && isEditing && enterpriseQuery.isError)
 
   useEffect(() => {
     if (!props.open) return
@@ -150,6 +190,7 @@ export function ModelMutateDrawer(props: {
     setPricingDirty(false)
     setPendingPricingName(null)
     setCloseConfirm(false)
+    pendingCreatedModel.current = null
   }, [
     props.open,
     props.initialSection,
@@ -167,17 +208,46 @@ export function ModelMutateDrawer(props: {
     const key = currentRow?.id
       ? `metadata:${currentRow.id}`
       : `channel:${currentRow?.model_name ?? ''}`
-    if (loadedKey.current === key || (isEditing && !modelQuery.data)) return
+    if (
+      loadedKey.current === key ||
+      (isEditing && !modelQuery.data) ||
+      enterpriseLoading ||
+      (isRoot && isEditing && enterpriseQuery.isError)
+    ) {
+      return
+    }
     form.reset(
       isEditing && modelQuery.data
-        ? transformModelToFormDefaults(modelQuery.data)
+        ? {
+            ...transformModelToFormDefaults(modelQuery.data),
+            enterprise: isRoot
+              ? {
+                  ...emptyEnterpriseProfile,
+                  ...enterprise,
+                  project_ids: enterprise?.project_ids ?? [],
+                }
+              : undefined,
+          }
         : {
             ...MODEL_FORM_DEFAULT_VALUES,
             model_name: currentRow?.model_name ?? '',
+            enterprise: isRoot
+              ? { ...emptyEnterpriseProfile, project_ids: [] }
+              : undefined,
           }
     )
     loadedKey.current = key
-  }, [props.open, currentRow, isEditing, modelQuery.data, form])
+  }, [
+    props.open,
+    currentRow,
+    isEditing,
+    modelQuery.data,
+    form,
+    isRoot,
+    enterprise,
+    enterpriseLoading,
+    enterpriseQuery.isError,
+  ])
 
   const save = useMutation({
     meta: { errorToast: false },
@@ -189,13 +259,47 @@ export function ModelMutateDrawer(props: {
         )
       }
       const payload = transformFormDataToModelPayload(values)
-      const response = currentRow?.id
-        ? await updateModel({ ...payload, id: currentRow.id })
+      const targetId = currentRow?.id ?? pendingCreatedModel.current?.id
+      const response = targetId
+        ? await updateModel({ ...payload, id: targetId })
         : await createModel(payload)
       if (!response.success) {
         throw createServerError(response, t('Operation failed'))
       }
-      return response
+      if (!currentRow?.id && response.data?.id) {
+        pendingCreatedModel.current = response.data
+      }
+      const profile = values.enterprise
+      const hasEnterpriseValues =
+        profile &&
+        (enterprise?.configured ||
+          profile.model_version ||
+          profile.capabilities ||
+          profile.context_limit ||
+          profile.owner ||
+          profile.scenarios ||
+          profile.deployment_type !== 'cloud' ||
+          profile.shared ||
+          profile.project_ids.length > 0)
+      if (isRoot && profile && hasEnterpriseValues) {
+        try {
+          const id = response.data?.id ?? targetId
+          if (!id) throw new Error(t('Model ID is required'))
+          await saveEnterpriseModel(id, profile)
+        } catch (error) {
+          await queryClient.invalidateQueries({ queryKey: modelsQueryKeys.all })
+          throw new Error(
+            t(
+              'Model metadata was saved, but additional information could not be saved: {{reason}}. Retry to finish.',
+              { reason: getServerErrorMessage(error, t('Operation failed')) }
+            )
+          )
+        }
+      }
+      return {
+        ...response,
+        data: response.data ?? pendingCreatedModel.current ?? undefined,
+      }
     },
     onSuccess: async (response) => {
       form.reset(form.getValues())
@@ -212,6 +316,7 @@ export function ModelMutateDrawer(props: {
         queryClient.invalidateQueries({ queryKey: modelsQueryKeys.all }),
         queryClient.invalidateQueries({ queryKey: ['pricing'] }),
         queryClient.invalidateQueries({ queryKey: vendorsQueryKeys.all }),
+        queryClient.invalidateQueries({ queryKey: enterpriseQueryKey }),
       ])
       toast.success(t('Model metadata saved'))
       if (!pricingDirty) props.onOpenChange(false)
@@ -222,7 +327,7 @@ export function ModelMutateDrawer(props: {
       })
     },
   })
-  const isSubmitting = save.isPending
+  const isSubmitting = save.isPending || enterpriseDeleting
   const handleFillEndpointTemplate = (key: string) => {
     const template = ENDPOINT_TEMPLATES[key]
     if (template) {
@@ -296,8 +401,11 @@ export function ModelMutateDrawer(props: {
                   onRetry={() => void modelQuery.refetch()}
                 />
               ) : null}
-              {isEditing && modelQuery.isPending && <LoadingState />}
-              {!modelQuery.isError && !(isEditing && modelQuery.isPending) && (
+              {isRoot && isEditing && enterpriseQuery.isError && (
+                <ErrorState onRetry={() => void enterpriseQuery.refetch()} />
+              )}
+              {metadataLoading && <LoadingState />}
+              {!metadataFailed && !metadataLoading && (
                 <Form {...form}>
                   <form
                     id='model-form'
@@ -428,6 +536,30 @@ export function ModelMutateDrawer(props: {
                         )}
                       />
                     </SideDrawerSection>
+
+                    {isRoot && (
+                      <SideDrawerSection>
+                        <h3 className='text-sm font-semibold'>
+                          {t('Model management information')}
+                        </h3>
+                        {(isEditing && enterpriseQuery.isError) ||
+                        projectsQuery.isError ? (
+                          <ErrorState
+                            onRetry={() => {
+                              void enterpriseQuery.refetch()
+                              void projectsQuery.refetch()
+                            }}
+                          />
+                        ) : null}
+                        <EnterpriseModelFields
+                          modelId={currentRow?.id}
+                          configured={enterprise?.configured ?? false}
+                          projects={projectsQuery.data ?? []}
+                          disabled={isSubmitting || enterpriseBlocked}
+                          onDeletingChange={setEnterpriseDeleting}
+                        />
+                      </SideDrawerSection>
+                    )}
 
                     {/* Matching Configuration */}
                     <SideDrawerSection>
@@ -612,7 +744,8 @@ export function ModelMutateDrawer(props: {
                   disabled={
                     isSubmitting ||
                     modelQuery.isError ||
-                    (isEditing && modelQuery.isPending)
+                    (isEditing && modelQuery.isPending) ||
+                    enterpriseBlocked
                   }
                 >
                   {isSubmitting ? t('Saving...') : t('Save metadata')}

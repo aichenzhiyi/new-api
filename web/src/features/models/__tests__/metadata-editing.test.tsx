@@ -25,11 +25,13 @@ import {
   cleanup,
   act,
   fireEvent,
+  within,
 } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { AxiosError } from 'axios'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { emptyEnterpriseProfile } from '@/features/enterprise-models/lib/forms'
 import { pricingOptions } from '@/features/model-pricing/pricing'
 import { api } from '@/lib/api'
 import { useAuthStore } from '@/stores/auth-store'
@@ -38,6 +40,7 @@ import { DataTableRowActions } from '../components/data-table-row-actions'
 import { ModelMutateDrawer } from '../components/drawers/model-mutate-drawer'
 import { ModelsDialogs } from '../components/models-dialogs'
 import { ModelsProvider } from '../components/models-provider'
+import { MODELS_SECTION_IDS } from '../section-registry'
 import type { Model } from '../types'
 
 const model = {
@@ -80,6 +83,9 @@ describe('model pricing entry', () => {
     const channelModel = { ...model, id: 0, model_name: 'channel-only' }
     let storedPrice = 1.5
     const get = vi.spyOn(api, 'get').mockImplementation(async (url) => {
+      if (url === '/api/enterprise/models' || url === '/api/projects') {
+        return { data: { success: true, data: [] } }
+      }
       if (url === '/api/option/model_pricing') {
         return {
           data: {
@@ -157,6 +163,9 @@ describe('model pricing entry', () => {
       }
     )
     vi.spyOn(api, 'get').mockImplementation(async (url) => {
+      if (url === '/api/enterprise/models' || url === '/api/projects') {
+        return { data: { success: true, data: [] } }
+      }
       if (url === '/api/models/7') return detail
       if (url === '/api/option/model_pricing') {
         return {
@@ -242,6 +251,9 @@ describe('model pricing entry', () => {
       matched_models: ['example-concrete'],
     }
     const get = vi.spyOn(api, 'get').mockImplementation(async (url) => {
+      if (url === '/api/enterprise/models' || url === '/api/projects') {
+        return { data: { success: true, data: [] } }
+      }
       if (url === '/api/models/7') {
         return { data: { success: true, data: matchedModel } }
       }
@@ -384,6 +396,9 @@ describe('metadata editing', () => {
         }
       )
       const get = vi.spyOn(api, 'get').mockImplementation(async (url) => {
+        if (url === '/api/enterprise/models' || url === '/api/projects') {
+          return { data: { success: true, data: [] } }
+        }
         if (url === '/api/models/7') {
           return { data: { success: true, data: model } }
         }
@@ -461,6 +476,9 @@ describe('metadata editing', () => {
   it('allows an administrator to save metadata without loading or changing system pricing', async () => {
     useAuthStore.getState().auth.setUser({ id: 2, username: 'admin', role: 10 })
     const get = vi.spyOn(api, 'get').mockImplementation(async (url) => {
+      if (url === '/api/enterprise/models' || url === '/api/projects') {
+        return { data: { success: true, data: [] } }
+      }
       if (url === '/api/models/7') {
         return { data: { success: true, data: model } }
       }
@@ -496,6 +514,7 @@ describe('metadata editing', () => {
       </QueryClientProvider>
     )
     const description = await screen.findByLabelText('Description')
+    expect(screen.queryByLabelText('Model version')).not.toBeInTheDocument()
     await waitFor(() => expect(description).toHaveValue('Original'))
     expect(screen.getByRole('combobox', { name: 'Vendor' })).toHaveValue(
       'Existing vendor'
@@ -542,6 +561,9 @@ describe('metadata editing', () => {
     let version = 'v1'
     let storedPrice = 1.5
     const get = vi.spyOn(api, 'get').mockImplementation(async (url) => {
+      if (url === '/api/enterprise/models' || url === '/api/projects') {
+        return { data: { success: true, data: [] } }
+      }
       if (url === '/api/models/7') {
         return { data: { success: true, data: model } }
       }
@@ -661,6 +683,270 @@ describe('metadata editing', () => {
     expect(screen.getByLabelText('Description')).toHaveValue(
       'Unsaved metadata draft'
     )
+    client.clear()
+  })
+})
+
+describe('model management information in the model editor', () => {
+  it('removes additional information inside the editor while preserving the basic-information draft', async () => {
+    useAuthStore.getState().auth.setUser({ id: 1, username: 'root', role: 100 })
+    let profiles = [
+      {
+        ...emptyEnterpriseProfile,
+        model_id: model.id,
+        model_version: 'v1',
+        configured: true,
+      },
+    ]
+    vi.spyOn(api, 'get').mockImplementation(async (url) => {
+      if (url === '/api/models/7') {
+        return { data: { success: true, data: model } }
+      }
+      if (url === '/api/enterprise/models') {
+        return { data: { success: true, data: profiles } }
+      }
+      if (url === '/api/projects') return { data: { success: true, data: [] } }
+      return { data: { success: true, data: { items: [] } } }
+    })
+    const remove = vi.spyOn(api, 'delete').mockImplementation(async () => {
+      profiles = []
+      return { data: { success: true } }
+    })
+    const put = vi
+      .spyOn(api, 'put')
+      .mockResolvedValue({ data: { success: true, data: model } })
+    const close = vi.fn()
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    render(
+      <QueryClientProvider client={client}>
+        <ModelMutateDrawer open currentRow={model} onOpenChange={close} />
+      </QueryClientProvider>
+    )
+    expect(await screen.findByLabelText('Model version')).toHaveValue('v1')
+    const user = userEvent.setup()
+    await user.clear(screen.getByLabelText('Description'))
+    await user.type(screen.getByLabelText('Description'), 'Keep this draft')
+    await user.click(
+      screen.getByRole('button', { name: 'Remove enterprise profile' })
+    )
+    expect(await screen.findByRole('alertdialog')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    )
+    expect(screen.getByLabelText('Model version')).toHaveValue('')
+    expect(screen.getByLabelText('Description')).toHaveValue('Keep this draft')
+    expect(remove).toHaveBeenCalledWith('/api/enterprise/models/7')
+    await user.click(screen.getByRole('button', { name: 'Save metadata' }))
+    await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+    expect(put.mock.calls.every(([url]) => url === '/api/models/')).toBe(true)
+    client.clear()
+  })
+  it('separates basic and management sections at the same level and saves them from one editor', async () => {
+    expect(MODELS_SECTION_IDS).not.toContain('enterprise')
+    useAuthStore.getState().auth.setUser({ id: 1, username: 'root', role: 100 })
+    const profile = {
+      ...emptyEnterpriseProfile,
+      model_id: model.id,
+      model_version: '2026',
+      context_limit: 131072,
+      configured: true,
+      project_ids: [1],
+    }
+    vi.spyOn(api, 'get').mockImplementation(async (url) => {
+      if (url === '/api/models/7') {
+        return { data: { success: true, data: model } }
+      }
+      if (url === '/api/enterprise/models') {
+        return { data: { success: true, data: [profile] } }
+      }
+      if (url === '/api/projects') {
+        return {
+          data: {
+            success: true,
+            data: [{ id: 1, code: 'P1', name: 'Assistant' }],
+          },
+        }
+      }
+      return { data: { success: true, data: { items: [] } } }
+    })
+    const put = vi
+      .spyOn(api, 'put')
+      .mockResolvedValue({ data: { success: true, data: model } })
+    const close = vi.fn()
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    render(
+      <QueryClientProvider client={client}>
+        <ModelMutateDrawer open currentRow={model} onOpenChange={close} />
+      </QueryClientProvider>
+    )
+    const version = await screen.findByLabelText('Model version')
+    expect(version).toHaveValue('2026')
+    const basicHeading = screen.getByRole('heading', {
+      name: 'Basic Information',
+      level: 3,
+    })
+    const managementHeading = screen.getByRole('heading', {
+      name: 'Model management information',
+      level: 3,
+    })
+    const basicSection = basicHeading.closest('section')
+    const managementSection = managementHeading.closest('section')
+    expect(basicSection).not.toBeNull()
+    expect(managementSection).not.toBeNull()
+    expect(managementSection).not.toBe(basicSection)
+    expect(managementSection?.parentElement).toBe(basicSection?.parentElement)
+    if (!basicSection || !managementSection) {
+      throw new Error('Expected sibling model information sections')
+    }
+    expect(within(basicSection).getByLabelText('Model Name *')).toHaveValue(
+      model.model_name
+    )
+    expect(
+      within(basicSection).queryByLabelText('Model version')
+    ).not.toBeInTheDocument()
+    expect(within(managementSection).getByLabelText('Model version')).toBe(
+      version
+    )
+    const user = userEvent.setup()
+    await user.clear(version)
+    await user.type(version, '2027')
+    await user.click(
+      screen.getByRole('switch', { name: 'Visible to all projects' })
+    )
+    await user.click(screen.getByRole('button', { name: 'Save metadata' }))
+    await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+    expect(put).toHaveBeenCalledWith(
+      '/api/models/',
+      expect.objectContaining({ id: 7, model_name: model.model_name }),
+      expect.anything()
+    )
+    expect(put).toHaveBeenCalledWith('/api/enterprise/models/7', {
+      ...emptyEnterpriseProfile,
+      model_version: '2027',
+      context_limit: 131072,
+      shared: true,
+      project_ids: [],
+    })
+    expect(put.mock.calls[0][1]).not.toHaveProperty('enterprise')
+    client.clear()
+  })
+
+  it('preserves new-model additional fields and retries the existing model when the second save fails', async () => {
+    useAuthStore.getState().auth.setUser({ id: 1, username: 'root', role: 100 })
+    vi.spyOn(api, 'get').mockImplementation(async (url) => ({
+      data: {
+        success: true,
+        data:
+          url === '/api/projects' || url === '/api/enterprise/models'
+            ? []
+            : { items: [] },
+      },
+    }))
+    const created = { ...model, id: 12, model_name: 'new-model' }
+    const post = vi
+      .spyOn(api, 'post')
+      .mockResolvedValue({ data: { success: true, data: created } })
+    let failed = false
+    const put = vi.spyOn(api, 'put').mockImplementation(async (url) => {
+      if (url === '/api/enterprise/models/12' && !failed) {
+        failed = true
+        return {
+          data: { success: false, message: 'Selected project does not exist' },
+        }
+      }
+      return { data: { success: true, data: created } }
+    })
+    const close = vi.fn()
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    render(
+      <QueryClientProvider client={client}>
+        <ModelMutateDrawer open onOpenChange={close} />
+      </QueryClientProvider>
+    )
+    const user = userEvent.setup()
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Save metadata' })
+      ).toBeEnabled()
+    )
+    await user.type(screen.getByLabelText('Model Name *'), 'new-model')
+    await user.type(screen.getByLabelText('Model version'), 'v2')
+    await user.click(screen.getByRole('button', { name: 'Save metadata' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Model metadata was saved, but additional information could not be saved'
+    )
+    expect(screen.getByLabelText('Model version')).toHaveValue('v2')
+    expect(close).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Save metadata' }))
+    await waitFor(() => expect(close).toHaveBeenCalledWith(false))
+    expect(post).toHaveBeenCalledTimes(1)
+    expect(put).toHaveBeenCalledWith(
+      '/api/models/',
+      expect.objectContaining({ id: 12 }),
+      expect.anything()
+    )
+    expect(
+      put.mock.calls.filter(([url]) => url === '/api/enterprise/models/12')
+    ).toHaveLength(2)
+    client.clear()
+  })
+
+  it('blocks saving and retries loading when existing additional information cannot be loaded', async () => {
+    useAuthStore.getState().auth.setUser({ id: 1, username: 'root', role: 100 })
+    let failed = false
+    vi.spyOn(api, 'get').mockImplementation(async (url) => {
+      if (url === '/api/models/7') {
+        return { data: { success: true, data: model } }
+      }
+      if (url === '/api/enterprise/models') {
+        if (!failed) {
+          failed = true
+          throw new Error('offline')
+        }
+        return { data: { success: true, data: [] } }
+      }
+      if (url === '/api/projects') return { data: { success: true, data: [] } }
+      return { data: { success: true, data: { items: [] } } }
+    })
+    const put = vi.spyOn(api, 'put')
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+    render(
+      <QueryClientProvider client={client}>
+        <ModelMutateDrawer open currentRow={model} onOpenChange={() => {}} />
+      </QueryClientProvider>
+    )
+    const retry = await screen.findByRole('button', { name: 'Retry' })
+    expect(screen.getByRole('button', { name: 'Save metadata' })).toBeDisabled()
+    expect(put).not.toHaveBeenCalled()
+    const user = userEvent.setup()
+    await user.click(retry)
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Save metadata' })
+      ).toBeEnabled()
+    )
+    expect(await screen.findByLabelText('Model version')).toHaveValue('')
     client.clear()
   })
 })

@@ -58,6 +58,10 @@ export const Route = createFileRoute('/_authenticated/models/$section')({
       })
     }
 
+    if (params.section === 'accounts' && auth.user.role !== ROLE.SUPER_ADMIN) {
+      throw redirect({ to: '/403' })
+    }
+
     const validSections = MODELS_SECTION_IDS as unknown as string[]
     if (!validSections.includes(params.section)) {
       throw redirect({

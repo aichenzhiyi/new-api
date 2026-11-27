@@ -22,11 +22,13 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
+import { Dialog } from '@/components/dialog'
 import { ErrorState } from '@/components/error-state'
 import { SectionPageLayout } from '@/components/layout'
 import { Button } from '@/components/ui/button'
 import { departmentsQueryKey, getDepartments } from '@/features/departments/api'
 import type { Department } from '@/features/departments/types'
+import { EnterpriseModels } from '@/features/enterprise-models/components/enterprise-models'
 import { handleServerError } from '@/lib/handle-server-error'
 import { ROLE } from '@/lib/roles'
 import { useAuthStore } from '@/stores/auth-store'
@@ -61,6 +63,7 @@ export function Projects() {
   const [editor, setEditor] = useState<Project | 'new' | null>(null)
   const [toggle, setToggle] = useState<Project | null>(null)
   const [deleting, setDeleting] = useState<Project | null>(null)
+  const [modelProject, setModelProject] = useState<Project | null>(null)
   const closeEditor = useCallback(() => setEditor(null), [])
   const openEditor = useCallback((project: Project) => setEditor(project), [])
   const openToggle = useCallback((project: Project) => setToggle(project), [])
@@ -128,6 +131,7 @@ export function Projects() {
               onEdit={openEditor}
               onToggle={openToggle}
               onDelete={openDelete}
+              onModels={setModelProject}
             />
           )}
         </SectionPageLayout.Content>
@@ -139,6 +143,19 @@ export function Projects() {
           canChangeDepartment={isGlobalAdmin}
           onClose={closeEditor}
         />
+      )}
+      {modelProject && (
+        <Dialog
+          open
+          title={`${t('Models')} · ${modelProject.name}`}
+          onOpenChange={(open) => {
+            if (!open) setModelProject(null)
+          }}
+          contentClassName='sm:max-w-6xl'
+          contentHeight='65vh'
+        >
+          <EnterpriseModels projectId={modelProject.id} />
+        </Dialog>
       )}
       <ConfirmDialog
         open={deleting !== null}

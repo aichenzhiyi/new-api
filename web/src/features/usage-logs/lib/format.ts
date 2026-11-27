@@ -451,6 +451,14 @@ export function formatDuration(
  */
 const AUDIT_TEMPLATES: Record<string, string> = {
   'project.access.denied': 'Denied project access (ID: {{id}})',
+  'supplier_account.create': 'Created procurement account (ID: {{id}})',
+  'supplier_account.update': 'Updated procurement account (ID: {{id}})',
+  'supplier_account.delete': 'Deleted procurement account (ID: {{id}})',
+  'enterprise_model.update':
+    'Updated enterprise model information (ID: {{id}})',
+  'enterprise_model.delete':
+    'Removed enterprise model information (ID: {{id}})',
+  'enterprise.access.denied': 'Denied shared model configuration access',
   'token.create': 'API token creation',
   'token.update': 'API token configuration update',
   'token.status_update': 'API token status update',
